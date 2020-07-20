@@ -7,10 +7,12 @@ Notes:
 
 """
 
+# pylint: disable=logging-fstring-interpolation, broad-except
+
 import logging
 import os
-import requests
 import time
+import requests
 from bs4 import BeautifulSoup
 
 LOG_FORMAT = "%(asctime)-11s [%(levelname)s] [%(name)s] %(message)s"
@@ -21,10 +23,11 @@ SUPPORTED_FILE_TYPES = ("csv", "xml", "xls")
 
 
 class UnsupportedExportType(Exception):
-    pass
+    """ Class to throw exception in case unkown file extension is used """
 
 
 class WebScrapper:
+    """ Simple Web scrapper """
 
     url = "https://echa.europa.eu/pact"
 
@@ -40,6 +43,7 @@ class WebScrapper:
         ("p_p_col_count", "2"),
     )
 
+    # pylint: disable=line-too-long
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36",
@@ -61,24 +65,25 @@ class WebScrapper:
             LOGGER.info(
                 f"Filename {filename} exists skipping download. Use locally cached web page.."
             )
-            with open(filename, "rb") as f:
-                self.page = f.read().strip()
+            with open(filename, "rb") as file:
+                self.page = file.read().strip()
         else:
             try:
                 LOGGER.info(f"Saving data into filename: {filename}")
-                with open(filename, "wb") as f:
+                with open(filename, "wb") as file:
                     self.get_page()
                     LOGGER.info(f"Length of HTML page: {len(self.page)}")
-                    f.write(self.page)
+                    file.write(self.page)
             except IOError as ex:
                 LOGGER.error(ex)
             except Exception as ex:
                 LOGGER.error(f"Unknown error: {ex}")
 
     def get_page(self):
+        """ Get HTML page content """
         try:
             with requests.Session() as session:
-                response = requests.get(WebScrapper.url, timeout=10)
+                response = session.get(WebScrapper.url, timeout=10)
                 status = response.status_code
                 if status == 200:
                     self.page = response.content
@@ -91,7 +96,8 @@ class WebScrapper:
         except Exception as ex:
             LOGGER.error(f"Unknown error: {ex}")
 
-    def scrape_form_input_data(self):
+    def _scrape_form_input_data(self):
+        """ Helper method to re-build form input data from HTML form """
         # download locally if cached attr is True
         if self.cached:
             self.download()
@@ -129,7 +135,7 @@ class WebScrapper:
         datafile = self.EXPORT_FILE.format(self.export_type)
         LOGGER.info(f"Exporting content to {datafile}.")
 
-        data = self.scrape_form_input_data()
+        data = self._scrape_form_input_data()
 
         LOGGER.debug(
             f"url={self.url}, headers={self.headers}, params={self.params}, data={data}"
@@ -151,11 +157,11 @@ class WebScrapper:
                         raise UnsupportedExportType
 
                     try:
-                        with open(datafile, filemode) as f:
+                        with open(datafile, filemode) as file:
                             if filemode == "w":
-                                f.write(response.text)
+                                file.write(response.text)
                             else:
-                                f.write(response.content)
+                                file.write(response.content)
                     except IOError as ex:
                         LOGGER.error(ex)
                     except Exception as ex:
