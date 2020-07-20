@@ -9,9 +9,11 @@ Notes:
 
 # pylint: disable=logging-fstring-interpolation, broad-except
 
+import argparse
 import logging
 import os
 import time
+import sys
 import requests
 from bs4 import BeautifulSoup
 
@@ -56,6 +58,8 @@ class WebScrapper:
         self.cached = cached
         self.export_type = export_type
         self.page = None
+
+        self._validate_file_extension()
 
     def download(self):
         """ Download local copy of scrapped page """
@@ -123,6 +127,12 @@ class WebScrapper:
 
         return data
 
+    def _validate_file_extension(self):
+        if self.export_type.lower() not in SUPPORTED_FILE_TYPES:
+            msg = f"Unknown file type. Supported file types: {SUPPORTED_FILE_TYPES}"
+            LOGGER.error(msg)
+            raise UnsupportedExportType
+
     def export_data_to_file(self, export_type=None):
         """ Export scraped data into file type
 
@@ -131,6 +141,8 @@ class WebScrapper:
         """
         if export_type:
             self.export_type = export_type
+
+        self._validate_file_extension()
 
         datafile = self.EXPORT_FILE.format(self.export_type)
         LOGGER.info(f"Exporting content to {datafile}.")
@@ -151,10 +163,6 @@ class WebScrapper:
                         filemode = "w"
                     elif self.export_type == "xls":
                         filemode = "wb"
-                    else:
-                        msg = f"Unknown file type. Supported file types: {SUPPORTED_FILE_TYPES}"
-                        LOGGER.error(msg)
-                        raise UnsupportedExportType
 
                     try:
                         with open(datafile, filemode) as file:
@@ -176,10 +184,37 @@ class WebScrapper:
             LOGGER.error(f"Unknown error: {ex}")
 
 
-if __name__ == "__main__":
-    scraper = WebScrapper(cached=True, export_type="csv")
+def parse_args():
+    """ Parse arguments from CLI """
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--filetype",
+        help="file type to export",
+        choices=SUPPORTED_FILE_TYPES,
+        required=True,
+    )
+    args = parser.parse_args()
 
+    if args.filetype not in SUPPORTED_FILE_TYPES:
+        # logging.error('Invalid file type provided. Aborting..')
+        parser.print_help()
+        sys.exit(1)
+
+    return args.filetype
+
+
+def test_all_export():
+    """ Test whether exporting all supported file types work as expected """
     for file_type in SUPPORTED_FILE_TYPES:
         start = time.time()
         scraper.export_data_to_file(export_type=file_type)
         LOGGER.info("Export total time: {:0.2f} seconds".format(time.time() - start))
+
+
+if __name__ == "__main__":
+    filetype = parse_args()
+    scraper = WebScrapper(cached=False, export_type=filetype)
+
+    start = time.time()
+    scraper.export_data_to_file()
+    LOGGER.info("Export total time: {:0.2f} seconds".format(time.time() - start))
