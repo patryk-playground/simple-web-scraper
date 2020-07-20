@@ -22,6 +22,7 @@ LOGGER = logging.getLogger("scraper")
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 
 SUPPORTED_FILE_TYPES = ("csv", "xml", "xls")
+MAIN_PAGE = "main.html"
 
 
 class UnsupportedExportType(Exception):
@@ -64,7 +65,7 @@ class WebScrapper:
     def download(self):
         """ Download local copy of scrapped page """
 
-        filename = "main.html"
+        filename = MAIN_PAGE
         if os.path.exists(filename):
             LOGGER.info(
                 f"Filename {filename} exists skipping download. Use locally cached web page.."
@@ -145,7 +146,7 @@ class WebScrapper:
         self._validate_file_extension()
 
         datafile = self.EXPORT_FILE.format(self.export_type)
-        LOGGER.info(f"Exporting content to {datafile}.")
+        LOGGER.info(f"Exporting content to {datafile}")
 
         data = self._scrape_form_input_data()
 
@@ -205,16 +206,33 @@ def parse_args():
 
 def test_all_export():
     """ Test whether exporting all supported file types work as expected """
+    try:
+        if os.path.exists(MAIN_PAGE):
+            os.remove(MAIN_PAGE)
+    except OSError as ex:
+        LOGGER.error(ex)
+        raise
+
+    scraper = WebScrapper(cached=True)
+
     for file_type in SUPPORTED_FILE_TYPES:
-        start = time.time()
+        start_time = time.time()
         scraper.export_data_to_file(export_type=file_type)
-        LOGGER.info("Export total time: {:0.2f} seconds".format(time.time() - start))
+        LOGGER.info(
+            "Export total time: {:0.2f} seconds".format(time.time() - start_time)
+        )
 
 
-if __name__ == "__main__":
+def main():
+    """ Main program """
     filetype = parse_args()
     scraper = WebScrapper(cached=False, export_type=filetype)
 
-    start = time.time()
+    start_time = time.time()
     scraper.export_data_to_file()
-    LOGGER.info("Export total time: {:0.2f} seconds".format(time.time() - start))
+    LOGGER.info("Export total time: {:0.2f} seconds".format(time.time() - start_time))
+
+
+if __name__ == "__main__":
+    # test_all_export()
+    main()
